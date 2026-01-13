@@ -2,9 +2,9 @@ import "dotenv/config";
 import axios from "axios";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { getGregoriApi } from "../generated/gregori-api";
-import { mockSuccess, mockError } from "../utils/mock-helpers";
-import type { AuthSignInDto } from "../generated/schemas";
+import { getGregoriApi } from "../../generated/gregori-api";
+import { mockSuccess, mockError } from "../../utils/mock-helpers";
+import type { MemberRegisterDto } from "../../generated/schemas";
 
 const baseURL = process.env.API_URL;
 
@@ -24,7 +24,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-const ROUTE = `/auth/signin`;
+const ROUTE = `/member/register`;
 
 const successResponseSchema = z.object({
   status: z.literal("SUCCESS"),
@@ -32,18 +32,11 @@ const successResponseSchema = z.object({
   timestamp: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "timestamp는 유효한 ISO 8601 형식이어야 합니다",
   }),
-  data: z.object({
-    member: z.object({
-      id: z.number(),
-      email: z.string().email(),
-      name: z.string(),
-      authority: z.enum(["USER", "SELLER", "ADMIN"]),
-      isDeleted: z.boolean(),
-    }),
-  }),
 });
 
 const VALIDATION_ERRORS = {
+  NAME_REQUIRED: "name은 필수값입니다",
+  NAME_INVALID: "name은 한글 2-10자여야 합니다",
   EMAIL_REQUIRED: "email은 필수값입니다",
   EMAIL_INVALID: "email은 유효한 이메일 형식이어야 합니다",
   PASSWORD_REQUIRED: "password는 필수값입니다",
@@ -51,10 +44,20 @@ const VALIDATION_ERRORS = {
     "password는 최소 2개의 알파벳, 1개의 숫자, 1개의 특수문자를 포함한 8-15자여야 합니다",
 } as const;
 
-const validateSignInRequest = (payload: {
+const validateRegisterRequest = (payload: {
+  name?: string;
   email?: string;
   password?: string;
 }): void => {
+  if (!payload.name) {
+    throw new Error(VALIDATION_ERRORS.NAME_REQUIRED);
+  }
+
+  const nameRegex = /^[가-힣]{2,10}$/;
+  if (!nameRegex.test(payload.name)) {
+    throw new Error(VALIDATION_ERRORS.NAME_INVALID);
+  }
+
   if (!payload.email) {
     throw new Error(VALIDATION_ERRORS.EMAIL_REQUIRED);
   }
@@ -74,36 +77,85 @@ const validateSignInRequest = (payload: {
   }
 };
 
-describe("POST /auth/signin", () => {
+describe("POST /member/register", () => {
   describe("검증", () => {
     it.each([
       {
+        field: "name",
+        payload: {
+          email: "test@example.com",
+          password: "Abc123!@",
+        },
+      },
+      {
         field: "email",
         payload: {
+          name: "홍길동",
           password: "Abc123!@",
         },
       },
       {
         field: "password",
         payload: {
+          name: "홍길동",
           email: "test@example.com",
         },
       },
-    ])("SI | PRE | 검증 | 필수값($field) 누락 — 요청 차단", ({ payload }) => {
+    ])("RG | PRE | 검증 | 필수값($field) 누락 — 요청 차단", ({ payload }) => {
       // when & then
-      expect(() => validateSignInRequest(payload)).toThrow();
+      expect(() => validateRegisterRequest(payload)).toThrow();
       expect(mockedAxios.post).not.toHaveBeenCalled();
     });
 
-    it("SI | PRE | 검증 | 이메일 형식 오류 — 요청 차단", () => {
+    it.each([
+      {
+        description: "한글 외 문자 포함",
+        name: "홍길동123",
+      },
+      {
+        description: "길이 부족 (1자)",
+        name: "홍",
+      },
+      {
+        description: "길이 초과 (11자)",
+        name: "홍길동홍길동홍길동홍길",
+      },
+      {
+        description: "영문 포함",
+        name: "홍길동Hong",
+      },
+      {
+        description: "공백 포함",
+        name: "홍 길동",
+      },
+    ])(
+      "RG | PRE | 검증 | 이름 형식 오류 ($description) — 요청 차단",
+      ({ name }) => {
+        // given
+        const payload = {
+          name,
+          email: "test@example.com",
+          password: "Abc123!@",
+        };
+
+        // when & then
+        expect(() => validateRegisterRequest(payload)).toThrow(
+          VALIDATION_ERRORS.NAME_INVALID
+        );
+        expect(mockedAxios.post).not.toHaveBeenCalled();
+      }
+    );
+
+    it("RG | PRE | 검증 | 이메일 형식 오류 — 요청 차단", () => {
       // given
       const payload = {
+        name: "홍길동",
         email: "invalid-email",
         password: "Abc123!@",
       };
 
       // when & then
-      expect(() => validateSignInRequest(payload)).toThrow(
+      expect(() => validateRegisterRequest(payload)).toThrow(
         VALIDATION_ERRORS.EMAIL_INVALID
       );
       expect(mockedAxios.post).not.toHaveBeenCalled();
@@ -131,16 +183,17 @@ describe("POST /auth/signin", () => {
         password: "Abc123!@defghijk",
       },
     ])(
-      "SI | PRE | 검증 | 비밀번호 형식 오류 ($description) — 요청 차단",
+      "RG | PRE | 검증 | 비밀번호 형식 오류 ($description) — 요청 차단",
       ({ password }) => {
         // given
         const payload = {
+          name: "홍길동",
           email: "test@example.com",
           password,
         };
 
         // when & then
-        expect(() => validateSignInRequest(payload)).toThrow(
+        expect(() => validateRegisterRequest(payload)).toThrow(
           VALIDATION_ERRORS.PASSWORD_INVALID
         );
         expect(mockedAxios.post).not.toHaveBeenCalled();
@@ -149,31 +202,23 @@ describe("POST /auth/signin", () => {
   });
 
   describe("성공", () => {
-    it("SI | 200 | 성공 | 로그인 성공 — 세션 생성", async () => {
+    it("RG | 200 | 성공 | 회원가입 성공", async () => {
       // given
-      const payload: AuthSignInDto = {
+      const payload: MemberRegisterDto = {
+        name: "홍길동",
         email: "test@example.com",
         password: "Abc123!@",
       };
       const successResponse = {
         status: "SUCCESS",
-        message: "로그인이 완료되었습니다",
+        message: "회원가입이 완료되었습니다",
         timestamp: "2025-08-07T12:30:00.123Z",
-        data: {
-          member: {
-            id: 1,
-            email: "test@example.com",
-            name: "테스트 사용자",
-            authority: "USER" as const,
-            isDeleted: false,
-          },
-        },
       };
       mockSuccess(mockedAxios.post, successResponse);
 
       // when
-      expect(() => validateSignInRequest(payload)).not.toThrow();
-      const response = await api.signIn(payload);
+      expect(() => validateRegisterRequest(payload)).not.toThrow();
+      const response = await api.register(payload);
 
       // then
       expect(mockedAxios.post).toHaveBeenCalledTimes(1);
@@ -186,35 +231,31 @@ describe("POST /auth/signin", () => {
       expect(response.data).toEqual(successResponse);
 
       const validatedData = successResponseSchema.parse(response.data);
-      expect(validatedData.data.member.id).toBeTypeOf("number");
-      expect(validatedData.data.member.email).toBe(payload.email);
-      expect(validatedData.data.member.name).toBeTypeOf("string");
-      expect(["USER", "SELLER", "ADMIN"]).toContain(
-        validatedData.data.member.authority
-      );
-      expect(validatedData.data.member.isDeleted).toBeTypeOf("boolean");
+      expect(validatedData.status).toBe("SUCCESS");
+      expect(validatedData.message).toBeTypeOf("string");
     });
   });
 
   describe("실패", () => {
-    it("SI | 401 | 실패 | 잘못된 이메일 또는 비밀번호", async () => {
+    it("RG | 409 | 실패 | 이미 존재하는 이메일", async () => {
       // given
-      const payload: AuthSignInDto = {
-        email: "wrong@example.com",
+      const payload: MemberRegisterDto = {
+        name: "홍길동",
+        email: "existing@example.com",
         password: "Abc123!@",
       };
       const errorResponse = {
         status: "ERROR",
-        message: "이메일 또는 비밀번호가 올바르지 않습니다",
-        errorCode: "INVALID_CREDENTIALS",
+        message: "이미 존재하는 이메일입니다",
+        errorCode: "EMAIL_ALREADY_EXISTS",
         timestamp: "2025-08-07T12:30:00.123Z",
       };
-      mockError(mockedAxios.post, 401, errorResponse);
+      mockError(mockedAxios.post, 409, errorResponse);
 
       // when & then
-      await expect(api.signIn(payload)).rejects.toMatchObject({
+      await expect(api.register(payload)).rejects.toMatchObject({
         isAxiosError: true,
-        response: { status: 401, data: errorResponse },
+        response: { status: 409, data: errorResponse },
       });
       expect(mockedAxios.post).toHaveBeenCalledTimes(1);
       expect(mockedAxios.post).toHaveBeenCalledWith(
@@ -224,35 +265,33 @@ describe("POST /auth/signin", () => {
       );
     });
 
-    it("SI | 400 | 실패 | Content-Type 오류", async () => {
+    it("RG | 400 | 실패 | 이름 형식 오류", async () => {
       // given
-      const invalidBody = "email=test@example.com&password=Abc123!@";
-      const headers = {
-        "Content-Type": "application/x-www-form-urlencoded",
+      const payload: MemberRegisterDto = {
+        name: "홍",
+        email: "test@example.com",
+        password: "Abc123!@",
       };
       const errorResponse = {
         status: "ERROR",
-        message: "잘못된 요청 형식입니다",
-        errorCode: "INVALID_REQUEST",
+        message: "이름 형식이 올바르지 않습니다",
+        errorCode: "INVALID_NAME_FORMAT",
         timestamp: "2025-08-07T12:30:00.123Z",
       };
       mockError(mockedAxios.post, 400, errorResponse);
 
       // when & then
-      await expect(
-        mockedAxios.post(ROUTE, invalidBody, {
-          headers,
-        })
-      ).rejects.toMatchObject({
+      await expect(api.register(payload)).rejects.toMatchObject({
         isAxiosError: true,
         response: { status: 400, data: errorResponse },
       });
       expect(mockedAxios.post).toHaveBeenCalledTimes(1);
     });
 
-    it("SI | 400 | 실패 | 이메일 형식 오류", async () => {
+    it("RG | 400 | 실패 | 이메일 형식 오류", async () => {
       // given
-      const payload: AuthSignInDto = {
+      const payload: MemberRegisterDto = {
+        name: "홍길동",
         email: "invalid-email",
         password: "Abc123!@",
       };
@@ -265,16 +304,17 @@ describe("POST /auth/signin", () => {
       mockError(mockedAxios.post, 400, errorResponse);
 
       // when & then
-      await expect(api.signIn(payload)).rejects.toMatchObject({
+      await expect(api.register(payload)).rejects.toMatchObject({
         isAxiosError: true,
         response: { status: 400, data: errorResponse },
       });
       expect(mockedAxios.post).toHaveBeenCalledTimes(1);
     });
 
-    it("SI | 400 | 실패 | 비밀번호 형식 오류", async () => {
+    it("RG | 400 | 실패 | 비밀번호 형식 오류", async () => {
       // given
-      const payload: AuthSignInDto = {
+      const payload: MemberRegisterDto = {
+        name: "홍길동",
         email: "test@example.com",
         password: "short",
       };
@@ -287,7 +327,7 @@ describe("POST /auth/signin", () => {
       mockError(mockedAxios.post, 400, errorResponse);
 
       // when & then
-      await expect(api.signIn(payload)).rejects.toMatchObject({
+      await expect(api.register(payload)).rejects.toMatchObject({
         isAxiosError: true,
         response: { status: 400, data: errorResponse },
       });

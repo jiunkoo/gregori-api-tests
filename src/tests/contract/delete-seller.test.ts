@@ -2,10 +2,10 @@ import "dotenv/config";
 import axios from "axios";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { getGregoriApi } from "../generated/gregori-api";
-import { mockSuccess, mockError } from "../utils/mock-helpers";
-import { setSessionCookie } from "../utils/axios-cookie-auth";
-import type { SessionMember } from "../generated/schemas";
+import { getGregoriApi } from "../../generated/gregori-api";
+import { mockSuccess, mockError } from "../../utils/mock-helpers";
+import { setSessionCookie } from "../../utils/axios-cookie-auth";
+import type { SessionMember } from "../../generated/schemas";
 
 const baseURL = process.env.API_URL;
 
@@ -26,8 +26,6 @@ beforeEach(() => {
   setSessionCookie("sessionid=test-session-123");
 });
 
-const ROUTE = `/member`;
-
 const successResponseSchema = z.object({
   status: z.literal("SUCCESS"),
   message: z.string(),
@@ -36,24 +34,26 @@ const successResponseSchema = z.object({
   }),
 });
 
-describe("DELETE /member", () => {
+describe("DELETE /seller/{sellerId}", () => {
   describe("성공", () => {
-    it("DM | 200 | 성공 | 회원 탈퇴 성공", async () => {
+    it("DS | 200 | 성공 | 판매자 삭제 성공", async () => {
       // given
+      const sellerId = 1;
+      const ROUTE = `/seller/${sellerId}`;
       const sessionMember: SessionMember = {
         id: 1,
-        email: "test@example.com",
-        authority: "GENERAL_MEMBER",
+        email: "admin@example.com",
+        authority: "ADMIN_MEMBER",
       };
       const successResponse = {
         status: "SUCCESS",
-        message: "회원 탈퇴가 완료되었습니다",
+        message: "판매자가 삭제되었습니다",
         timestamp: "2025-08-07T12:30:00.123Z",
       };
       mockSuccess(mockedAxios.delete, successResponse);
 
       // when
-      const response = await api.deleteMember(sessionMember);
+      const response = await api.deleteSeller(sellerId, sessionMember);
 
       // then
       expect(mockedAxios.delete).toHaveBeenCalledTimes(1);
@@ -70,13 +70,14 @@ describe("DELETE /member", () => {
   });
 
   describe("실패", () => {
-    it("DM | 401 | 실패 | 인증되지 않은 사용자", async () => {
+    it("DS | 401 | 실패 | 인증되지 않은 사용자", async () => {
       // given
       setSessionCookie(null);
+      const sellerId = 1;
       const sessionMember: SessionMember = {
         id: 1,
-        email: "test@example.com",
-        authority: "GENERAL_MEMBER",
+        email: "admin@example.com",
+        authority: "ADMIN_MEMBER",
       };
       const errorResponse = {
         status: "ERROR",
@@ -87,53 +88,87 @@ describe("DELETE /member", () => {
       mockError(mockedAxios.delete, 401, errorResponse);
 
       // when & then
-      await expect(api.deleteMember(sessionMember)).rejects.toMatchObject({
+      await expect(
+        api.deleteSeller(sellerId, sessionMember)
+      ).rejects.toMatchObject({
         isAxiosError: true,
         response: { status: 401, data: errorResponse },
       });
       expect(mockedAxios.delete).toHaveBeenCalledTimes(1);
     });
 
-    it("DM | 404 | 실패 | 존재하지 않는 회원", async () => {
+    it("DS | 404 | 실패 | 존재하지 않는 판매자", async () => {
       // given
+      const sellerId = 999;
       const sessionMember: SessionMember = {
-        id: 999,
-        email: "notfound@example.com",
-        authority: "GENERAL_MEMBER",
+        id: 1,
+        email: "admin@example.com",
+        authority: "ADMIN_MEMBER",
       };
       const errorResponse = {
         status: "ERROR",
-        message: "회원을 찾을 수 없습니다",
-        errorCode: "MEMBER_NOT_FOUND",
+        message: "판매자를 찾을 수 없습니다",
+        errorCode: "SELLER_NOT_FOUND",
         timestamp: "2025-08-07T12:30:00.123Z",
       };
       mockError(mockedAxios.delete, 404, errorResponse);
 
       // when & then
-      await expect(api.deleteMember(sessionMember)).rejects.toMatchObject({
+      await expect(
+        api.deleteSeller(sellerId, sessionMember)
+      ).rejects.toMatchObject({
         isAxiosError: true,
         response: { status: 404, data: errorResponse },
       });
       expect(mockedAxios.delete).toHaveBeenCalledTimes(1);
     });
 
-    it("DM | 409 | 실패 | 진행 중인 주문이 있는 회원", async () => {
+    it("DS | 403 | 실패 | 권한 부족", async () => {
       // given
+      const sellerId = 1;
       const sessionMember: SessionMember = {
         id: 1,
-        email: "test@example.com",
+        email: "user@example.com",
         authority: "GENERAL_MEMBER",
       };
       const errorResponse = {
         status: "ERROR",
-        message: "진행 중인 주문이 있어 탈퇴할 수 없습니다",
-        errorCode: "MEMBER_HAS_ACTIVE_ORDERS",
+        message: "판매자 삭제 권한이 없습니다",
+        errorCode: "FORBIDDEN",
+        timestamp: "2025-08-07T12:30:00.123Z",
+      };
+      mockError(mockedAxios.delete, 403, errorResponse);
+
+      // when & then
+      await expect(
+        api.deleteSeller(sellerId, sessionMember)
+      ).rejects.toMatchObject({
+        isAxiosError: true,
+        response: { status: 403, data: errorResponse },
+      });
+      expect(mockedAxios.delete).toHaveBeenCalledTimes(1);
+    });
+
+    it("DS | 409 | 실패 | 진행 중인 주문이 있는 판매자", async () => {
+      // given
+      const sellerId = 1;
+      const sessionMember: SessionMember = {
+        id: 1,
+        email: "admin@example.com",
+        authority: "ADMIN_MEMBER",
+      };
+      const errorResponse = {
+        status: "ERROR",
+        message: "진행 중인 주문이 있어 삭제할 수 없습니다",
+        errorCode: "SELLER_HAS_ACTIVE_ORDERS",
         timestamp: "2025-08-07T12:30:00.123Z",
       };
       mockError(mockedAxios.delete, 409, errorResponse);
 
       // when & then
-      await expect(api.deleteMember(sessionMember)).rejects.toMatchObject({
+      await expect(
+        api.deleteSeller(sellerId, sessionMember)
+      ).rejects.toMatchObject({
         isAxiosError: true,
         response: { status: 409, data: errorResponse },
       });

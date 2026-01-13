@@ -2,9 +2,9 @@ import "dotenv/config";
 import axios from "axios";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { getGregoriApi } from "../generated/gregori-api";
-import { mockSuccess, mockError } from "../utils/mock-helpers";
-import { setSessionCookie } from "../utils/axios-cookie-auth";
+import { getGregoriApi } from "../../generated/gregori-api";
+import { mockSuccess, mockError } from "../../utils/mock-helpers";
+import { setSessionCookie } from "../../utils/axios-cookie-auth";
 
 const baseURL = process.env.API_URL;
 

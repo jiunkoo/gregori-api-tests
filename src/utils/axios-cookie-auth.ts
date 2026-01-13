@@ -9,7 +9,8 @@ let sessionCookie: string | null = null;
 
 const getCookie = (): string | null => {
   if (sessionCookie) return sessionCookie;
-  return process.env.SESSION_COOKIE || null;
+  if (process.env.SESSION_COOKIE) return process.env.SESSION_COOKIE;
+  return null;
 };
 
 const extractCookieValue = (
@@ -66,10 +67,9 @@ export const setupCookieAuth = (axiosInstance: AxiosInstance) => {
     if (!cookie) return cfg;
 
     const url = cfg.url || "";
-    const isAuthEndpoint =
-      url.includes("/auth/signin") || url.includes("/auth/signout");
+    const isSignInEndpoint = url.includes("/auth/signin");
 
-    if (isAuthEndpoint) return cfg;
+    if (isSignInEndpoint) return cfg;
 
     const hasCookie =
       !!(cfg.headers as any)?.Cookie || !!(cfg.headers as any)?.cookie;

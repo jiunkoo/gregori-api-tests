@@ -2,10 +2,10 @@ import "dotenv/config";
 import axios from "axios";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { getGregoriApi } from "../generated/gregori-api";
-import { mockSuccess, mockError } from "../utils/mock-helpers";
-import { setSessionCookie } from "../utils/axios-cookie-auth";
-import type { GetSellersParams } from "../generated/schemas";
+import { getGregoriApi } from "../../generated/gregori-api";
+import { mockSuccess, mockError } from "../../utils/mock-helpers";
+import { setSessionCookie } from "../../utils/axios-cookie-auth";
+import type { GetOrdersParams } from "../../generated/schemas";
 
 const baseURL = process.env.API_URL;
 
@@ -26,13 +26,27 @@ beforeEach(() => {
   setSessionCookie("sessionid=test-session-123");
 });
 
-const ROUTE = `/seller`;
+const ROUTE = `/order`;
 
-const sellerSchema = z.object({
+const orderDetailSchema = z.object({
+  id: z.number().optional(),
+  menuId: z.number().optional(),
+  quantity: z.number().optional(),
+  price: z.number().optional(),
+  status: z.string().optional(),
+});
+
+const orderSchema = z.object({
   id: z.number().optional(),
   memberId: z.number().optional(),
-  businessNumber: z.string().optional(),
-  businessName: z.string().optional(),
+  orderNumber: z.string().optional(),
+  paymentMethod: z.string().optional(),
+  paymentAmount: z.number().optional(),
+  deliveryCost: z.number().optional(),
+  status: z.string().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+  orderDetails: z.array(orderDetailSchema).optional(),
 });
 
 const successResponseSchema = z.object({
@@ -41,43 +55,51 @@ const successResponseSchema = z.object({
   timestamp: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "timestamp는 유효한 ISO 8601 형식이어야 합니다",
   }),
-  data: z.array(sellerSchema),
+  data: z.array(orderSchema),
 });
 
-describe("GET /seller", () => {
+describe("GET /order", () => {
   describe("성공", () => {
-    it("GS | 200 | 성공 | 판매자 목록 조회 성공 (페이지 파라미터 없음)", async () => {
+    it("GO | 200 | 성공 | 주문 목록 조회 성공 (페이지 파라미터 없음)", async () => {
       // given
-      const params: GetSellersParams = {
+      const params: GetOrdersParams = {
         sessionMember: {
           id: 1,
-          email: "admin@example.com",
-          authority: "ADMIN_MEMBER",
+          email: "test@example.com",
+          authority: "GENERAL_MEMBER",
         },
       };
       const successResponse = {
         status: "SUCCESS",
-        message: "판매자 목록 조회가 완료되었습니다",
+        message: "주문 목록 조회가 완료되었습니다",
         timestamp: "2025-08-07T12:30:00.123Z",
         data: [
           {
             id: 1,
-            memberId: 2,
-            businessNumber: "123-45-67890",
-            businessName: "테스트 쇼핑몰",
-          },
-          {
-            id: 2,
-            memberId: 3,
-            businessNumber: "987-65-43210",
-            businessName: "샘플 스토어",
+            memberId: 1,
+            orderNumber: "ORD-2025-001",
+            paymentMethod: "CARD",
+            paymentAmount: 50000,
+            deliveryCost: 3000,
+            status: "PENDING",
+            createdAt: "2025-08-07T10:00:00.000Z",
+            updatedAt: "2025-08-07T10:00:00.000Z",
+            orderDetails: [
+              {
+                id: 1,
+                menuId: 1,
+                quantity: 2,
+                price: 25000,
+                status: "PENDING",
+              },
+            ],
           },
         ],
       };
       mockSuccess(mockedAxios.get, successResponse);
 
       // when
-      const response = await api.getSellers(params);
+      const response = await api.getOrders(params);
 
       // then
       expect(mockedAxios.get).toHaveBeenCalledTimes(1);
@@ -89,43 +111,48 @@ describe("GET /seller", () => {
 
       const validatedData = successResponseSchema.parse(response.data);
       expect(Array.isArray(validatedData.data)).toBe(true);
-      validatedData.data.forEach((seller) => {
-        if (seller.id !== undefined) {
-          expect(seller.id).toBeTypeOf("number");
+      validatedData.data.forEach((order) => {
+        if (order.id !== undefined) {
+          expect(order.id).toBeTypeOf("number");
         }
-        if (seller.businessName !== undefined) {
-          expect(seller.businessName).toBeTypeOf("string");
+        if (order.orderNumber !== undefined) {
+          expect(order.orderNumber).toBeTypeOf("string");
         }
       });
     });
 
-    it("GS | 200 | 성공 | 판매자 목록 조회 성공 (페이지 파라미터 포함)", async () => {
+    it("GO | 200 | 성공 | 주문 목록 조회 성공 (페이지 파라미터 포함)", async () => {
       // given
-      const params: GetSellersParams = {
+      const params: GetOrdersParams = {
         sessionMember: {
           id: 1,
-          email: "admin@example.com",
-          authority: "ADMIN_MEMBER",
+          email: "test@example.com",
+          authority: "GENERAL_MEMBER",
         },
         page: 1,
       };
       const successResponse = {
         status: "SUCCESS",
-        message: "판매자 목록 조회가 완료되었습니다",
+        message: "주문 목록 조회가 완료되었습니다",
         timestamp: "2025-08-07T12:30:00.123Z",
         data: [
           {
             id: 1,
-            memberId: 2,
-            businessNumber: "123-45-67890",
-            businessName: "테스트 쇼핑몰",
+            memberId: 1,
+            orderNumber: "ORD-2025-001",
+            paymentMethod: "CARD",
+            paymentAmount: 50000,
+            deliveryCost: 3000,
+            status: "PENDING",
+            createdAt: "2025-08-07T10:00:00.000Z",
+            updatedAt: "2025-08-07T10:00:00.000Z",
           },
         ],
       };
       mockSuccess(mockedAxios.get, successResponse);
 
       // when
-      const response = await api.getSellers(params);
+      const response = await api.getOrders(params);
 
       // then
       expect(mockedAxios.get).toHaveBeenCalledTimes(1);
@@ -139,14 +166,14 @@ describe("GET /seller", () => {
   });
 
   describe("실패", () => {
-    it("GS | 401 | 실패 | 인증되지 않은 사용자", async () => {
+    it("GO | 401 | 실패 | 인증되지 않은 사용자", async () => {
       // given
       setSessionCookie(null);
-      const params: GetSellersParams = {
+      const params: GetOrdersParams = {
         sessionMember: {
           id: 1,
-          email: "admin@example.com",
-          authority: "ADMIN_MEMBER",
+          email: "test@example.com",
+          authority: "GENERAL_MEMBER",
         },
       };
       const errorResponse = {
@@ -158,45 +185,20 @@ describe("GET /seller", () => {
       mockError(mockedAxios.get, 401, errorResponse);
 
       // when & then
-      await expect(api.getSellers(params)).rejects.toMatchObject({
+      await expect(api.getOrders(params)).rejects.toMatchObject({
         isAxiosError: true,
         response: { status: 401, data: errorResponse },
       });
       expect(mockedAxios.get).toHaveBeenCalledTimes(1);
     });
 
-    it("GS | 403 | 실패 | 권한 부족", async () => {
+    it("GO | 400 | 실패 | 잘못된 페이지 번호", async () => {
       // given
-      const params: GetSellersParams = {
+      const params: GetOrdersParams = {
         sessionMember: {
           id: 1,
-          email: "user@example.com",
+          email: "test@example.com",
           authority: "GENERAL_MEMBER",
-        },
-      };
-      const errorResponse = {
-        status: "ERROR",
-        message: "판매자 목록 조회 권한이 없습니다",
-        errorCode: "FORBIDDEN",
-        timestamp: "2025-08-07T12:30:00.123Z",
-      };
-      mockError(mockedAxios.get, 403, errorResponse);
-
-      // when & then
-      await expect(api.getSellers(params)).rejects.toMatchObject({
-        isAxiosError: true,
-        response: { status: 403, data: errorResponse },
-      });
-      expect(mockedAxios.get).toHaveBeenCalledTimes(1);
-    });
-
-    it("GS | 400 | 실패 | 잘못된 페이지 번호", async () => {
-      // given
-      const params: GetSellersParams = {
-        sessionMember: {
-          id: 1,
-          email: "admin@example.com",
-          authority: "ADMIN_MEMBER",
         },
         page: -1,
       };
@@ -209,7 +211,7 @@ describe("GET /seller", () => {
       mockError(mockedAxios.get, 400, errorResponse);
 
       // when & then
-      await expect(api.getSellers(params)).rejects.toMatchObject({
+      await expect(api.getOrders(params)).rejects.toMatchObject({
         isAxiosError: true,
         response: { status: 400, data: errorResponse },
       });

@@ -2,12 +2,12 @@ import "dotenv/config";
 import axios from "axios";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { getGregoriApi } from "../generated/gregori-api";
-import { mockSuccess, mockError } from "../utils/mock-helpers";
-import { setSessionCookie } from "../utils/axios-cookie-auth";
-import type { SessionMember } from "../generated/schemas";
-import type { UpdateOrderDetailStatusParams } from "../generated/schemas";
-import { OrderDetailStatusUpdateDtoStatus } from "../generated/schemas/orderDetailStatusUpdateDtoStatus";
+import { getGregoriApi } from "../../generated/gregori-api";
+import { mockSuccess, mockError } from "../../utils/mock-helpers";
+import { setSessionCookie } from "../../utils/axios-cookie-auth";
+import type { SessionMember } from "../../generated/schemas";
+import type { UpdateOrderDetailStatusParams } from "../../generated/schemas";
+import { OrderDetailStatusUpdateDtoStatus } from "../../generated/schemas/orderDetailStatusUpdateDtoStatus";
 
 const baseURL = process.env.API_URL;
 
