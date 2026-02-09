@@ -5,7 +5,6 @@ import {
   generateUniqueName,
 } from "../../utils/integration-helpers";
 import { waitForAdminSession } from "../../utils/integration-session";
-import { setSessionCookie } from "../../utils/axios-cookie-auth";
 import type { CategoryRequestDto } from "../../generated/schemas";
 
 const describeIf = INTEGRATION_TEST_ENABLED ? describe : describe.skip;
@@ -15,15 +14,6 @@ describeIf("Integration: Category API", () => {
 
   beforeAll(async () => {
     await waitForAdminSession();
-
-    const adminSessionCookie = process.env.ADMIN_SESSION_COOKIE;
-    if (!adminSessionCookie) {
-      throw new Error(
-        "관리자 세션이 없습니다. 관리자 테스트 세션이 초기화되지 않았습니다."
-      );
-    }
-
-    setSessionCookie(adminSessionCookie);
   });
 
   afterAll(async () => {
@@ -72,7 +62,7 @@ describeIf("Integration: Category API", () => {
   });
 
   describe("DELETE /category/{categoryId}", () => {
-    it("DC | 200 | 성공 | 카테고리 삭제 성공", async () => {
+    it("DC | 204 | 성공 | 카테고리 삭제 성공", async () => {
       // given
       if (createdCategoryIds.length === 0) {
         throw new Error(
@@ -85,7 +75,7 @@ describeIf("Integration: Category API", () => {
       const response = (await integrationApi.deleteCategory(categoryId)) as any;
 
       // then
-      expect([200, 204]).toContain(response.status);
+      expect(response.status).toBe(204);
       createdCategoryIds.pop();
     });
   });

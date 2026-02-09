@@ -1,11 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { INTEGRATION_TEST_ENABLED } from "./integration.bootstrap";
-import {
-  getGlobalTestAccount,
-  waitForGlobalSession,
-} from "../../utils/integration-session";
+import { getGlobalTestAccount, waitForGlobalSession } from "../../utils/integration-session";
 import { integrationApi } from "../../utils/integration-helpers";
-import { setSessionCookie } from "../../utils/axios-cookie-auth";
 import type { OrderRequestDto } from "../../generated/schemas";
 
 const describeIf = INTEGRATION_TEST_ENABLED ? describe : describe.skip;
@@ -17,16 +13,6 @@ describeIf("Integration: Order API", () => {
 
   beforeAll(async () => {
     await waitForGlobalSession();
-
-    const sessionCookie = process.env.SESSION_COOKIE;
-    if (!sessionCookie) {
-      throw new Error(
-        "세션이 없습니다. 전역 테스트 세션이 초기화되지 않았습니다."
-      );
-    }
-
-    setSessionCookie(sessionCookie);
-
     const globalAccount = getGlobalTestAccount();
     testEmail = globalAccount.email || "";
     memberId = globalAccount.memberId;

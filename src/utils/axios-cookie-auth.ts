@@ -5,15 +5,32 @@ import type {
   InternalAxiosRequestConfig,
 } from "axios";
 
-let sessionCookie: string | null = null;
+export type SessionKind = "general" | "admin";
+
+const sessionCookies: { general: string | null; admin: string | null } = {
+  general: null,
+  admin: null,
+};
+
+let currentSession: SessionKind | null = "general";
 
 const getCookie = (): string | null => {
-  if (sessionCookie) return sessionCookie;
-  if (process.env.SESSION_COOKIE) return process.env.SESSION_COOKIE;
+  const fromStore =
+    currentSession === "admin"
+      ? sessionCookies.admin
+      : sessionCookies.general;
+  if (fromStore) return fromStore;
+  if (currentSession === "admin" && process.env.ADMIN_MEMBER_SESSION_COOKIE)
+    return process.env.ADMIN_MEMBER_SESSION_COOKIE;
+  if (process.env.GENERAL_MEMBER_SESSION_COOKIE)
+    return process.env.GENERAL_MEMBER_SESSION_COOKIE;
+  if (process.env.ADMIN_MEMBER_SESSION_COOKIE)
+    return process.env.ADMIN_MEMBER_SESSION_COOKIE;
   return null;
 };
 
-const extractCookieValue = (
+/** Set-Cookie 헤더에서 쿠키 값만 추출 (name=value; name2=value2 형태) */
+export const extractCookieValue = (
   setCookieHeader: string | string[]
 ): string | null => {
   if (!setCookieHeader) return null;
@@ -49,8 +66,21 @@ const formatCookieHeader = (cookie: string): string => {
   return extractCookieValue(cookie) || cookie;
 };
 
+export const setGeneralSessionCookie = (cookie: string | null) => {
+  sessionCookies.general = cookie;
+};
+
+export const setAdminSessionCookie = (cookie: string | null) => {
+  sessionCookies.admin = cookie;
+};
+
+export const setCurrentSession = (kind: SessionKind | null) => {
+  currentSession = kind;
+};
+
 export const setSessionCookie = (cookie: string | null) => {
-  sessionCookie = cookie;
+  sessionCookies.general = cookie;
+  currentSession = "general";
 };
 
 export const getSessionCookie = (): string | null => {
@@ -58,7 +88,9 @@ export const getSessionCookie = (): string | null => {
 };
 
 export const clearSessionCookie = () => {
-  sessionCookie = null;
+  sessionCookies.general = null;
+  sessionCookies.admin = null;
+  currentSession = "general";
 };
 
 export const setupCookieAuth = (axiosInstance: AxiosInstance) => {
@@ -88,20 +120,7 @@ export const setupCookieAuth = (axiosInstance: AxiosInstance) => {
   });
 
   axiosInstance.interceptors.response.use(
-    (response: AxiosResponse) => {
-      const url = response.config?.url || "";
-      if (url.includes("/auth/signin") && response.status === 200) {
-        const setCookieHeader =
-          response.headers?.["set-cookie"] || response.headers?.["Set-Cookie"];
-        if (setCookieHeader) {
-          const cookieValue = extractCookieValue(setCookieHeader);
-          if (cookieValue) {
-            sessionCookie = cookieValue;
-          }
-        }
-      }
-      return response;
-    },
+    (response: AxiosResponse) => response,
     (error) => {
       return Promise.reject(error);
     }
@@ -137,33 +156,7 @@ const wrapTargetMethods = (target: any) => {
                 },
               };
 
-        return orig.apply(thisArg, [url, data, nextCfg]).then((res: any) => {
-          if (url.includes("/auth/signin")) {
-            const response =
-              res && "status" in res && "data" in res
-                ? res
-                : ({
-                    status: 200,
-                    statusText: "OK",
-                    data: res,
-                    headers: {},
-                    config: { url },
-                  } as AxiosResponse);
-
-            if (response.status === 200) {
-              const setCookieHeader =
-                response.headers?.["set-cookie"] ||
-                response.headers?.["Set-Cookie"];
-              if (setCookieHeader) {
-                const cookieValue = extractCookieValue(setCookieHeader);
-                if (cookieValue) {
-                  sessionCookie = cookieValue;
-                }
-              }
-            }
-          }
-          return res;
-        });
+        return orig.apply(thisArg, [url, data, nextCfg]);
       },
     });
 

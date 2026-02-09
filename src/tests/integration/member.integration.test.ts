@@ -1,22 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { INTEGRATION_TEST_ENABLED } from "./integration.bootstrap";
-import {
-  getGlobalTestAccount,
-  waitForGlobalSession,
-} from "../../utils/integration-session";
+import { getGlobalTestAccount, waitForGlobalSession } from "../../utils/integration-session";
 import {
   integrationApi,
   generateUniqueName,
 } from "../../utils/integration-helpers";
-import {
-  clearSessionCookie,
-  setSessionCookie,
-} from "../../utils/axios-cookie-auth";
-import type {
-  GetMemberParams,
-  UpdateMemberNameBody,
-  MemberNameUpdateDto,
-} from "../../generated/schemas";
+import type { GetMemberParams, MemberNameUpdateDto } from "../../generated/schemas";
 
 const describeIf = INTEGRATION_TEST_ENABLED ? describe : describe.skip;
 
@@ -28,16 +17,6 @@ describeIf("Integration: Member API", () => {
 
   beforeAll(async () => {
     await waitForGlobalSession();
-
-    const sessionCookie = process.env.SESSION_COOKIE;
-    if (!sessionCookie) {
-      throw new Error(
-        "세션이 없습니다. 전역 테스트 세션이 초기화되지 않았습니다."
-      );
-    }
-
-    setSessionCookie(sessionCookie);
-
     const globalAccount = getGlobalTestAccount();
     testEmail = globalAccount.email || "";
     testPassword = globalAccount.password || "";
@@ -65,14 +44,31 @@ describeIf("Integration: Member API", () => {
       const response = (await integrationApi.getMember(params)) as any;
 
       // then
+      expect(response.status).toBe(200);
       expect(response.data).toBeDefined();
       expect(response.data.email).toBe(testEmail);
       expect(response.data.name).toBeDefined();
     });
 
-    it("GM | 401 | 실패 | 인증되지 않은 사용자", async () => {
+
+  describe("POST /member/name", () => {
+    it("UMN | 200 | 성공 | 회원 이름 변경 성공", async () => {
       // given
-      clearSessionCookie();
+      const newName = generateUniqueName("변경된");
+      const dto: MemberNameUpdateDto = {
+        name: newName,
+      };
+
+      // when
+      const response = (await integrationApi.updateMemberName(dto as any)) as any;
+
+      // then
+      expect(response.status).toBe(204);
+    });
+  });
+
+    it("GM | 404 | 실패 | 인증되지 않은 사용자", async () => {
+      // given
       const params: GetMemberParams = {
         sessionMember: {
           id: 1,
@@ -91,25 +87,7 @@ describeIf("Integration: Member API", () => {
         })
         .catch((e) => e);
       expect(error.isAxiosError).toBe(true);
-      expect([401, 404]).toContain(error.response?.status);
-    });
-  });
-
-  describe("POST /member/name", () => {
-    it("UMN | 200 | 성공 | 회원 이름 변경 성공", async () => {
-      // given
-      const newName = generateUniqueName("변경된");
-      const dto: MemberNameUpdateDto = {
-        name: newName,
-      };
-
-      // when
-      const response = (await integrationApi.updateMemberName(
-        dto as any
-      )) as any;
-
-      // then
-      expect([200, 204]).toContain(response.status);
+      expect(error.response?.status).toBe(404);
     });
   });
 });
