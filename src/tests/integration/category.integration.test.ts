@@ -1,11 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { INTEGRATION_TEST_ENABLED } from "./integration.bootstrap";
+import { setCurrentSession, SESSION_KIND_HEADER } from "../../utils/axios-cookie-auth";
 import {
   integrationApi,
   generateUniqueName,
 } from "../../utils/integration-helpers";
 import { waitForAdminSession } from "../../utils/integration-session";
 import type { CategoryRequestDto } from "../../generated/schemas";
+
+const adminHeaders = { headers: { [SESSION_KIND_HEADER]: "admin" as const } };
 
 const describeIf = INTEGRATION_TEST_ENABLED ? describe : describe.skip;
 
@@ -14,11 +17,31 @@ describeIf("Integration: Category API", () => {
 
   beforeAll(async () => {
     await waitForAdminSession();
+    setCurrentSession("admin");
   });
 
   afterAll(async () => {
-    for (const categoryId of createdCategoryIds) {
-      await integrationApi.deleteCategory(categoryId).catch(() => {});
+    const ids = [...createdCategoryIds];
+    const deleteOne = (id: number) =>
+      integrationApi.deleteCategory(id, adminHeaders).catch((e: any) => {
+        throw { id, status: e?.response?.status };
+      });
+    let results = await Promise.allSettled(ids.map((id) => deleteOne(id)));
+    const failedIds = results
+      .map((r, i) => (r.status === "rejected" ? ids[i] : null))
+      .filter((id): id is number => id != null);
+    if (failedIds.length > 0) {
+      results = await Promise.allSettled(failedIds.map((id) => deleteOne(id)));
+      const failCount = results.filter((r) => r.status === "rejected").length;
+      results.forEach((r, i) => {
+        if (r.status === "rejected" && failedIds[i] != null) {
+          const status = (r.reason as any)?.status;
+          console.warn(`[teardown] category delete failed id=${failedIds[i]} status=${status ?? "unknown"}`);
+        }
+      });
+      if (failCount > 0) {
+        console.warn(`[teardown] category delete failed after retry: ${failCount} ids`);
+      }
     }
   });
 

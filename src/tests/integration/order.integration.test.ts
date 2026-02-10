@@ -1,8 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { INTEGRATION_TEST_ENABLED } from "./integration.bootstrap";
 import { getGlobalTestAccount, waitForGlobalSession } from "../../utils/integration-session";
+import { setCurrentSession, SESSION_KIND_HEADER } from "../../utils/axios-cookie-auth";
 import { integrationApi } from "../../utils/integration-helpers";
 import type { OrderRequestDto } from "../../generated/schemas";
+
+const generalHeaders = { headers: { [SESSION_KIND_HEADER]: "general" as const } };
 
 const describeIf = INTEGRATION_TEST_ENABLED ? describe : describe.skip;
 
@@ -13,6 +16,7 @@ describeIf("Integration: Order API", () => {
 
   beforeAll(async () => {
     await waitForGlobalSession();
+    setCurrentSession("general");
     const globalAccount = getGlobalTestAccount();
     testEmail = globalAccount.email || "";
     memberId = globalAccount.memberId;
@@ -24,8 +28,27 @@ describeIf("Integration: Order API", () => {
   });
 
   afterAll(async () => {
-    for (const orderId of createdOrderIds) {
-      await integrationApi.cancelOrder(orderId).catch(() => {});
+    const ids = [...createdOrderIds];
+    const cancelOne = (id: number) =>
+      integrationApi.cancelOrder(id, generalHeaders).catch((e: any) => {
+        throw { id, status: e?.response?.status };
+      });
+    let results = await Promise.allSettled(ids.map((id) => cancelOne(id)));
+    const failedIds = results
+      .map((r, i) => (r.status === "rejected" ? ids[i] : null))
+      .filter((id): id is number => id != null);
+    if (failedIds.length > 0) {
+      results = await Promise.allSettled(failedIds.map((id) => cancelOne(id)));
+      const failCount = results.filter((r) => r.status === "rejected").length;
+      results.forEach((r, i) => {
+        if (r.status === "rejected" && failedIds[i] != null) {
+          const status = (r.reason as any)?.status;
+          console.warn(`[teardown] order cancel failed id=${failedIds[i]} status=${status ?? "unknown"}`);
+        }
+      });
+      if (failCount > 0) {
+        console.warn(`[teardown] order cancel failed after retry: ${failCount} ids`);
+      }
     }
   });
 

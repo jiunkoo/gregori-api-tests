@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { INTEGRATION_TEST_ENABLED } from "./integration.bootstrap";
 import { getGlobalTestAccount, waitForGlobalSession } from "../../utils/integration-session";
+import { setCurrentSession } from "../../utils/axios-cookie-auth";
 import {
   integrationApi,
   generateUniqueName,
@@ -17,6 +18,7 @@ describeIf("Integration: Member API", () => {
 
   beforeAll(async () => {
     await waitForGlobalSession();
+    setCurrentSession("general");
     const globalAccount = getGlobalTestAccount();
     testEmail = globalAccount.email || "";
     testPassword = globalAccount.password || "";

@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from "axios";
 import { getGregoriApi } from "../generated/gregori-api";
-import { INTEGRATION_TEST_BASE_URL } from "../tests/integration/integration.bootstrap";
+import { getIntegrationBaseURL } from "./integration-axios";
 
 export const integrationApi = getGregoriApi();
 
@@ -9,7 +9,7 @@ let axiosInstance: AxiosInstance | null = null;
 export const getAxiosInstance = (): AxiosInstance => {
   if (!axiosInstance) {
     axiosInstance = axios.create({
-      baseURL: INTEGRATION_TEST_BASE_URL,
+      baseURL: getIntegrationBaseURL(),
       timeout: 10000,
     });
   }

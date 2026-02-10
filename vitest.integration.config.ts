@@ -1,5 +1,9 @@
 import { defineConfig } from "vitest/config";
 
+if (typeof process !== "undefined") {
+  process.env.COOKIE_AUTH_AUTOWRAP = "false";
+}
+
 export default defineConfig({
   test: {
     globals: true,

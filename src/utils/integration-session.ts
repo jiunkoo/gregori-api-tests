@@ -3,9 +3,9 @@ import {
   extractCookieValue,
   setGeneralSessionCookie,
   setAdminSessionCookie,
-  setCurrentSession,
+  SESSION_KIND_HEADER,
 } from "./axios-cookie-auth";
-import { INTEGRATION_TEST_ENABLED } from "../tests/integration/integration.bootstrap";
+import { isIntegrationEnabled } from "./integration-axios";
 import { setSharedTestAccount, getSharedTestAccount } from "./integration-helpers";
 
 let globalSessionInitialized: Promise<void> | null = null;
@@ -62,7 +62,7 @@ function saveGeneralAccountToEnv(account: Account) {
 }
 
 export async function initializeGlobalTestSession(): Promise<void> {
-  if (!INTEGRATION_TEST_ENABLED) return;
+  if (!isIntegrationEnabled()) return;
   if (globalSessionInitialized) {
     await globalSessionInitialized;
     return;
@@ -88,7 +88,6 @@ export async function initializeGlobalTestSession(): Promise<void> {
     }
 
     setGeneralSessionCookie(cookie);
-    setCurrentSession("general");
 
     let memberId = account.memberId;
     if (memberId == null && res?.data) {
@@ -102,12 +101,15 @@ export async function initializeGlobalTestSession(): Promise<void> {
     }
     if (memberId == null) {
       try {
-        const memberRes = (await getGregoriApi().getMember({
-          sessionMember: {
-            email: account.email,
-            authority: "GENERAL_MEMBER",
+        const memberRes = (await api.getMember(
+          {
+            sessionMember: {
+              email: account.email,
+              authority: "GENERAL_MEMBER",
+            },
           },
-        })) as any;
+          { headers: { [SESSION_KIND_HEADER]: "general" } }
+        )) as any;
         const memberData = memberRes?.data?.data ?? memberRes?.data ?? memberRes;
         if (memberData?.id != null) memberId = memberData.id;
       } catch {
@@ -124,7 +126,7 @@ export async function initializeGlobalTestSession(): Promise<void> {
 }
 
 export async function initializeAdminTestSession(): Promise<void> {
-  if (!INTEGRATION_TEST_ENABLED) return;
+  if (!isIntegrationEnabled()) return;
   if (adminSessionInitialized) {
     await adminSessionInitialized;
     return;
@@ -150,7 +152,6 @@ export async function initializeAdminTestSession(): Promise<void> {
     }
 
     setAdminSessionCookie(cookie);
-    setCurrentSession("admin");
   })();
 
   adminSessionInitialized = done;
@@ -159,12 +160,10 @@ export async function initializeAdminTestSession(): Promise<void> {
 
 export async function waitForGlobalSession(): Promise<void> {
   await initializeGlobalTestSession();
-  setCurrentSession("general");
 }
 
 export async function waitForAdminSession(): Promise<void> {
   await initializeAdminTestSession();
-  setCurrentSession("admin");
 }
 
 export function getGlobalTestAccount(): Account {

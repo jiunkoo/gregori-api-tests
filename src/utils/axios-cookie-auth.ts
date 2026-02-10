@@ -7,29 +7,35 @@ import type {
 
 export type SessionKind = "general" | "admin";
 
+export const SESSION_KIND_HEADER = "x-session-kind";
+
 const sessionCookies: { general: string | null; admin: string | null } = {
   general: null,
   admin: null,
 };
 
-let currentSession: SessionKind | null = "general";
+let defaultSessionKind: SessionKind | null = "general";
 
-const getCookie = (): string | null => {
-  const fromStore =
-    currentSession === "admin"
-      ? sessionCookies.admin
-      : sessionCookies.general;
-  if (fromStore) return fromStore;
-  if (currentSession === "admin" && process.env.ADMIN_MEMBER_SESSION_COOKIE)
-    return process.env.ADMIN_MEMBER_SESSION_COOKIE;
+const getCookieForKind = (kind: SessionKind | null): string | null => {
+  if (kind === null) return null;
+  if (kind === "admin") {
+    if (sessionCookies.admin) return sessionCookies.admin;
+    if (process.env.ADMIN_MEMBER_SESSION_COOKIE)
+      return process.env.ADMIN_MEMBER_SESSION_COOKIE;
+    return null;
+  }
+  if (sessionCookies.general) return sessionCookies.general;
   if (process.env.GENERAL_MEMBER_SESSION_COOKIE)
     return process.env.GENERAL_MEMBER_SESSION_COOKIE;
-  if (process.env.ADMIN_MEMBER_SESSION_COOKIE)
-    return process.env.ADMIN_MEMBER_SESSION_COOKIE;
   return null;
 };
 
-/** Set-Cookie 헤더에서 쿠키 값만 추출 (name=value; name2=value2 형태) */
+const getCookie = (kind?: SessionKind | null): string | null => {
+  const k = kind ?? defaultSessionKind;
+  if (k === null) return null;
+  return getCookieForKind(k);
+};
+
 export const extractCookieValue = (
   setCookieHeader: string | string[]
 ): string | null => {
@@ -75,12 +81,12 @@ export const setAdminSessionCookie = (cookie: string | null) => {
 };
 
 export const setCurrentSession = (kind: SessionKind | null) => {
-  currentSession = kind;
+  defaultSessionKind = kind;
 };
 
 export const setSessionCookie = (cookie: string | null) => {
   sessionCookies.general = cookie;
-  currentSession = "general";
+  defaultSessionKind = "general";
 };
 
 export const getSessionCookie = (): string | null => {
@@ -90,31 +96,36 @@ export const getSessionCookie = (): string | null => {
 export const clearSessionCookie = () => {
   sessionCookies.general = null;
   sessionCookies.admin = null;
-  currentSession = "general";
+  defaultSessionKind = "general";
 };
 
+const COOKIE_AUTH_INSTALLED = Symbol.for("cookieAuthInstalled");
+
 export const setupCookieAuth = (axiosInstance: AxiosInstance) => {
+  if ((axiosInstance as any)[COOKIE_AUTH_INSTALLED]) return;
+  (axiosInstance as any)[COOKIE_AUTH_INSTALLED] = true;
+
   axiosInstance.interceptors.request.use((cfg: InternalAxiosRequestConfig) => {
-    const cookie = getCookie();
+    const rawKind = (cfg.headers as Record<string, unknown>)?.[SESSION_KIND_HEADER];
+    const kind: SessionKind | undefined =
+      rawKind === "admin" || rawKind === "general" ? rawKind : undefined;
+    const headers = { ...(cfg.headers as any) };
+    delete headers[SESSION_KIND_HEADER];
+    cfg.headers = headers;
+
+    const cookie = getCookie(kind);
     if (!cookie) return cfg;
 
     const url = cfg.url || "";
     const isSignInEndpoint = url.includes("/auth/signin");
-
     if (isSignInEndpoint) return cfg;
 
-    const hasCookie =
-      !!(cfg.headers as any)?.Cookie || !!(cfg.headers as any)?.cookie;
+    const hasCookie = !!headers.Cookie || !!headers.cookie;
     const skip =
-      cfg.headers?.["x-skip-auth"] === true ||
-      cfg.headers?.["x-skip-auth"] === "true";
+      headers["x-skip-auth"] === true || headers["x-skip-auth"] === "true";
 
     if (!skip && !hasCookie) {
-      const cookieValue = formatCookieHeader(cookie);
-      cfg.headers = {
-        ...(cfg.headers as any),
-        Cookie: cookieValue,
-      };
+      cfg.headers = { ...headers, Cookie: formatCookieHeader(cookie) };
     }
     return cfg;
   });
@@ -128,34 +139,52 @@ export const setupCookieAuth = (axiosInstance: AxiosInstance) => {
 };
 
 const wrapTargetMethods = (target: any) => {
+  const buildCookieConfig = (
+    url: string,
+    cfg: AxiosRequestConfig | undefined
+  ): AxiosRequestConfig => {
+    const rawKind = (cfg?.headers as any)?.[SESSION_KIND_HEADER];
+    const kind: SessionKind | undefined =
+      rawKind === "admin" || rawKind === "general" ? rawKind : undefined;
+    const headers = { ...(cfg?.headers ?? {}) } as any;
+    delete headers[SESSION_KIND_HEADER];
+
+    const cookie = getCookie(kind);
+    const isAuthEndpoint =
+      url.includes("/auth/signin") || url.includes("/auth/signout");
+    const hasCookie = !!headers.Cookie || !!headers.cookie;
+    const skip =
+      headers["x-skip-auth"] === true || headers["x-skip-auth"] === "true";
+
+    if (skip || hasCookie || !cookie || isAuthEndpoint) {
+      return { ...(cfg ?? {}), headers };
+    }
+    return {
+      ...(cfg ?? {}),
+      headers: { ...headers, Cookie: formatCookieHeader(cookie) },
+    };
+  };
+
   const wrap = (name: "post" | "get" | "put" | "delete" | "patch") => {
     const fn = target[name];
     if (!fn || typeof fn !== "function" || (fn as any).__cookieAuthWrapped)
       return;
 
     const wrapped = new Proxy(fn, {
-      apply(orig, thisArg, args: [string, any?, AxiosRequestConfig?]) {
-        const [url, data, cfg] = args;
-        const cookie = getCookie();
+      apply(orig, thisArg, args: any[]) {
+        const url = args[0];
+        const isGetOrDelete = name === "get" || name === "delete";
+        let cfg: AxiosRequestConfig | undefined;
+        let data: any;
 
-        const isAuthEndpoint =
-          url.includes("/auth/signin") || url.includes("/auth/signout");
-        const hasCookie = !!cfg?.headers?.Cookie || !!cfg?.headers?.cookie;
-        const skip =
-          cfg?.headers?.["x-skip-auth"] === true ||
-          cfg?.headers?.["x-skip-auth"] === "true";
-
-        const nextCfg: AxiosRequestConfig =
-          skip || hasCookie || !cookie || isAuthEndpoint
-            ? { ...(cfg ?? {}) }
-            : {
-                ...(cfg ?? {}),
-                headers: {
-                  ...(cfg?.headers ?? {}),
-                  Cookie: formatCookieHeader(cookie),
-                },
-              };
-
+        if (isGetOrDelete) {
+          cfg = args.length >= 2 ? args[1] : undefined;
+          const nextCfg = buildCookieConfig(url, cfg);
+          return orig.apply(thisArg, [url, nextCfg]);
+        }
+        data = args.length >= 2 ? args[1] : undefined;
+        cfg = args.length >= 3 ? args[2] : undefined;
+        const nextCfg = buildCookieConfig(url, cfg);
         return orig.apply(thisArg, [url, data, nextCfg]);
       },
     });
