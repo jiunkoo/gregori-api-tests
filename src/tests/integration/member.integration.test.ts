@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { INTEGRATION_TEST_ENABLED } from "./integration.bootstrap";
 import { getGlobalTestAccount, waitForGlobalSession } from "../../utils/integration-session";
 import { setCurrentSession } from "../../utils/axios-cookie-auth";
 import {
@@ -8,9 +7,7 @@ import {
 } from "../../utils/integration-helpers";
 import type { GetMemberParams, MemberNameUpdateDto } from "../../generated/schemas";
 
-const describeIf = INTEGRATION_TEST_ENABLED ? describe : describe.skip;
-
-describeIf("Integration: Member API", () => {
+describe("Integration: Member API", () => {
   let testEmail: string;
   let testPassword: string;
   let testName: string;

@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { INTEGRATION_TEST_ENABLED } from "./integration.bootstrap";
 import { getGlobalTestAccount, waitForGlobalSession } from "../../utils/integration-session";
 import { setCurrentSession, SESSION_KIND_HEADER } from "../../utils/axios-cookie-auth";
 import { integrationApi } from "../../utils/integration-helpers";
@@ -7,9 +6,7 @@ import type { OrderRequestDto } from "../../generated/schemas";
 
 const generalHeaders = { headers: { [SESSION_KIND_HEADER]: "general" as const } };
 
-const describeIf = INTEGRATION_TEST_ENABLED ? describe : describe.skip;
-
-describeIf("Integration: Order API", () => {
+describe("Integration: Order API", () => {
   let testEmail: string;
   let memberId: number | null = null;
   let createdOrderIds: number[] = [];

@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { INTEGRATION_TEST_ENABLED } from "./integration.bootstrap";
 import { setCurrentSession, SESSION_KIND_HEADER } from "../../utils/axios-cookie-auth";
 import {
   integrationApi,
@@ -10,9 +9,7 @@ import type { CategoryRequestDto } from "../../generated/schemas";
 
 const adminHeaders = { headers: { [SESSION_KIND_HEADER]: "admin" as const } };
 
-const describeIf = INTEGRATION_TEST_ENABLED ? describe : describe.skip;
-
-describeIf("Integration: Category API", () => {
+describe("Integration: Category API", () => {
   let createdCategoryIds: number[] = [];
 
   beforeAll(async () => {

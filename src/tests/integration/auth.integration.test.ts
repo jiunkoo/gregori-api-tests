@@ -1,6 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import type { AxiosResponse } from "axios";
-import { INTEGRATION_TEST_ENABLED } from "./integration.bootstrap";
 import { getTestAccount } from "../../utils/integration-session";
 import { integrationApi } from "../../utils/integration-helpers";
 import {
@@ -10,9 +9,7 @@ import {
 } from "../../utils/axios-cookie-auth";
 import type { AuthSignInDto } from "../../generated/schemas";
 
-const describeIf = INTEGRATION_TEST_ENABLED ? describe : describe.skip;
-
-describeIf("Integration: Auth API", () => {
+describe("Integration: Auth API", () => {
   let testEmail: string;
   let testPassword: string;
   let sessionCookie: string | null = null;
