@@ -12,29 +12,66 @@ import type {
 } from 'axios';
 
 import type {
+  ApiResponseCategory,
+  ApiResponseListCategory,
+  ApiResponseListOrderResponseDto,
+  ApiResponseListProductResponseDto,
+  ApiResponseListSellerResponseDto,
+  ApiResponseMemberResponseDto,
+  ApiResponseOrderResponseDto,
+  ApiResponseProductResponseDto,
+  ApiResponseSellerResponseDto,
+  ApiResponseVoid,
   AuthSignInDto,
-  Category,
   CategoryRequestDto,
   CreateSellerBody,
   GetCategoriesParams,
   GetMemberParams,
   GetOrdersParams,
+  GetProductsParams,
   GetSellerParams,
   GetSellersParams,
   MemberRegisterDto,
-  MemberResponseDto,
   OrderRequestDto,
-  OrderResponseDto,
-  SellerResponseDto,
+  ProductCreateDto,
   SessionMember,
   UpdateMemberNameBody,
   UpdateMemberPasswordBody,
   UpdateOrderDetailStatusParams,
+  UpdateProductBody,
   UpdateSellerBody
 } from './schemas';
 
 export const getGregoriApi = () => {
-const getSellers = <TData = AxiosResponse<SellerResponseDto[]>>(
+const getProducts = <TData = AxiosResponse<ApiResponseListProductResponseDto>>(
+    params?: GetProductsParams, options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.get(
+      `/product`,{
+    ...options,
+        params: {...params, ...options?.params},}
+    );
+  }
+
+const updateProduct = <TData = AxiosResponse<ApiResponseVoid>>(
+    updateProductBody: UpdateProductBody, options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.put(
+      `/product`,
+      updateProductBody,options
+    );
+  }
+
+const createProduct = <TData = AxiosResponse<ApiResponseVoid>>(
+    productCreateDto: ProductCreateDto, options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.post(
+      `/product`,
+      productCreateDto,options
+    );
+  }
+
+const getSellers = <TData = AxiosResponse<ApiResponseListSellerResponseDto>>(
     params: GetSellersParams, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.get(
@@ -44,7 +81,7 @@ const getSellers = <TData = AxiosResponse<SellerResponseDto[]>>(
     );
   }
 
-const createSeller = <TData = AxiosResponse<void>>(
+const createSeller = <TData = AxiosResponse<ApiResponseVoid>>(
     createSellerBody: CreateSellerBody, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
@@ -53,7 +90,7 @@ const createSeller = <TData = AxiosResponse<void>>(
     );
   }
 
-const updateSeller = <TData = AxiosResponse<void>>(
+const updateSeller = <TData = AxiosResponse<ApiResponseVoid>>(
     updateSellerBody: UpdateSellerBody, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.patch(
@@ -62,7 +99,7 @@ const updateSeller = <TData = AxiosResponse<void>>(
     );
   }
 
-const getOrders = <TData = AxiosResponse<OrderResponseDto[]>>(
+const getOrders = <TData = AxiosResponse<ApiResponseListOrderResponseDto>>(
     params: GetOrdersParams, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.get(
@@ -72,7 +109,7 @@ const getOrders = <TData = AxiosResponse<OrderResponseDto[]>>(
     );
   }
 
-const createOrder = <TData = AxiosResponse<void>>(
+const createOrder = <TData = AxiosResponse<ApiResponseVoid>>(
     orderRequestDto: OrderRequestDto, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
@@ -81,7 +118,7 @@ const createOrder = <TData = AxiosResponse<void>>(
     );
   }
 
-const register = <TData = AxiosResponse<void>>(
+const register = <TData = AxiosResponse<ApiResponseVoid>>(
     memberRegisterDto: MemberRegisterDto, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
@@ -90,7 +127,7 @@ const register = <TData = AxiosResponse<void>>(
     );
   }
 
-const updateMemberPassword = <TData = AxiosResponse<void>>(
+const updateMemberPassword = <TData = AxiosResponse<ApiResponseVoid>>(
     updateMemberPasswordBody: UpdateMemberPasswordBody, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
@@ -99,7 +136,7 @@ const updateMemberPassword = <TData = AxiosResponse<void>>(
     );
   }
 
-const updateMemberName = <TData = AxiosResponse<void>>(
+const updateMemberName = <TData = AxiosResponse<ApiResponseVoid>>(
     updateMemberNameBody: UpdateMemberNameBody, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
@@ -108,7 +145,7 @@ const updateMemberName = <TData = AxiosResponse<void>>(
     );
   }
 
-const getCategories = <TData = AxiosResponse<Category[]>>(
+const getCategories = <TData = AxiosResponse<ApiResponseListCategory>>(
     params?: GetCategoriesParams, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.get(
@@ -118,7 +155,7 @@ const getCategories = <TData = AxiosResponse<Category[]>>(
     );
   }
 
-const createCategory = <TData = AxiosResponse<void>>(
+const createCategory = <TData = AxiosResponse<ApiResponseVoid>>(
     categoryRequestDto: CategoryRequestDto, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
@@ -127,7 +164,7 @@ const createCategory = <TData = AxiosResponse<void>>(
     );
   }
 
-const getCategory = <TData = AxiosResponse<Category>>(
+const getCategory = <TData = AxiosResponse<ApiResponseCategory>>(
     categoryId: number, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.get(
@@ -135,7 +172,7 @@ const getCategory = <TData = AxiosResponse<Category>>(
     );
   }
 
-const updateCategoryName = <TData = AxiosResponse<void>>(
+const updateCategoryName = <TData = AxiosResponse<ApiResponseVoid>>(
     categoryId: number,
     categoryRequestDto: CategoryRequestDto, options?: AxiosRequestConfig
  ): Promise<TData> => {
@@ -145,7 +182,7 @@ const updateCategoryName = <TData = AxiosResponse<void>>(
     );
   }
 
-const deleteCategory = <TData = AxiosResponse<void>>(
+const deleteCategory = <TData = AxiosResponse<ApiResponseVoid>>(
     categoryId: number, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.delete(
@@ -153,7 +190,7 @@ const deleteCategory = <TData = AxiosResponse<void>>(
     );
   }
 
-const signOut = <TData = AxiosResponse<void>>(
+const signOut = <TData = AxiosResponse<ApiResponseVoid>>(
      options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
@@ -161,7 +198,7 @@ const signOut = <TData = AxiosResponse<void>>(
     );
   }
 
-const signIn = <TData = AxiosResponse<void>>(
+const signIn = <TData = AxiosResponse<ApiResponseVoid>>(
     authSignInDto: AuthSignInDto, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.post(
@@ -170,7 +207,7 @@ const signIn = <TData = AxiosResponse<void>>(
     );
   }
 
-const getOrder = <TData = AxiosResponse<OrderResponseDto>>(
+const getOrder = <TData = AxiosResponse<ApiResponseOrderResponseDto>>(
     orderId: number, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.get(
@@ -178,7 +215,7 @@ const getOrder = <TData = AxiosResponse<OrderResponseDto>>(
     );
   }
 
-const cancelOrder = <TData = AxiosResponse<void>>(
+const cancelOrder = <TData = AxiosResponse<ApiResponseVoid>>(
     orderId: number, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.patch(
@@ -186,7 +223,7 @@ const cancelOrder = <TData = AxiosResponse<void>>(
     );
   }
 
-const updateOrderDetailStatus = <TData = AxiosResponse<void>>(
+const updateOrderDetailStatus = <TData = AxiosResponse<ApiResponseVoid>>(
     sessionMember: SessionMember,
     params: UpdateOrderDetailStatusParams, options?: AxiosRequestConfig
  ): Promise<TData> => {
@@ -198,7 +235,7 @@ const updateOrderDetailStatus = <TData = AxiosResponse<void>>(
     );
   }
 
-const getSeller = <TData = AxiosResponse<SellerResponseDto>>(
+const getSeller = <TData = AxiosResponse<ApiResponseSellerResponseDto>>(
     sellerId: number,
     params: GetSellerParams, options?: AxiosRequestConfig
  ): Promise<TData> => {
@@ -209,7 +246,7 @@ const getSeller = <TData = AxiosResponse<SellerResponseDto>>(
     );
   }
 
-const deleteSeller = <TData = AxiosResponse<void>>(
+const deleteSeller = <TData = AxiosResponse<ApiResponseVoid>>(
     sellerId: number,
     sessionMember: SessionMember, options?: AxiosRequestConfig
  ): Promise<TData> => {
@@ -219,7 +256,25 @@ const deleteSeller = <TData = AxiosResponse<void>>(
     );
   }
 
-const getMember = <TData = AxiosResponse<MemberResponseDto>>(
+const getProduct = <TData = AxiosResponse<ApiResponseProductResponseDto>>(
+    productId: number, options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.get(
+      `/product/${productId}`,options
+    );
+  }
+
+const deleteProduct = <TData = AxiosResponse<ApiResponseVoid>>(
+    productId: number,
+    sessionMember: SessionMember, options?: AxiosRequestConfig
+ ): Promise<TData> => {
+    return axios.delete(
+      `/product/${productId}`,{data:
+      sessionMember, ...options}
+    );
+  }
+
+const getMember = <TData = AxiosResponse<ApiResponseMemberResponseDto>>(
     params: GetMemberParams, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.get(
@@ -229,7 +284,7 @@ const getMember = <TData = AxiosResponse<MemberResponseDto>>(
     );
   }
 
-const deleteMember = <TData = AxiosResponse<void>>(
+const deleteMember = <TData = AxiosResponse<ApiResponseVoid>>(
     sessionMember: SessionMember, options?: AxiosRequestConfig
  ): Promise<TData> => {
     return axios.delete(
@@ -238,26 +293,31 @@ const deleteMember = <TData = AxiosResponse<void>>(
     );
   }
 
-return {getSellers,createSeller,updateSeller,getOrders,createOrder,register,updateMemberPassword,updateMemberName,getCategories,createCategory,getCategory,updateCategoryName,deleteCategory,signOut,signIn,getOrder,cancelOrder,updateOrderDetailStatus,getSeller,deleteSeller,getMember,deleteMember}};
-export type GetSellersResult = AxiosResponse<SellerResponseDto[]>
-export type CreateSellerResult = AxiosResponse<void>
-export type UpdateSellerResult = AxiosResponse<void>
-export type GetOrdersResult = AxiosResponse<OrderResponseDto[]>
-export type CreateOrderResult = AxiosResponse<void>
-export type RegisterResult = AxiosResponse<void>
-export type UpdateMemberPasswordResult = AxiosResponse<void>
-export type UpdateMemberNameResult = AxiosResponse<void>
-export type GetCategoriesResult = AxiosResponse<Category[]>
-export type CreateCategoryResult = AxiosResponse<void>
-export type GetCategoryResult = AxiosResponse<Category>
-export type UpdateCategoryNameResult = AxiosResponse<void>
-export type DeleteCategoryResult = AxiosResponse<void>
-export type SignOutResult = AxiosResponse<void>
-export type SignInResult = AxiosResponse<void>
-export type GetOrderResult = AxiosResponse<OrderResponseDto>
-export type CancelOrderResult = AxiosResponse<void>
-export type UpdateOrderDetailStatusResult = AxiosResponse<void>
-export type GetSellerResult = AxiosResponse<SellerResponseDto>
-export type DeleteSellerResult = AxiosResponse<void>
-export type GetMemberResult = AxiosResponse<MemberResponseDto>
-export type DeleteMemberResult = AxiosResponse<void>
+return {getProducts,updateProduct,createProduct,getSellers,createSeller,updateSeller,getOrders,createOrder,register,updateMemberPassword,updateMemberName,getCategories,createCategory,getCategory,updateCategoryName,deleteCategory,signOut,signIn,getOrder,cancelOrder,updateOrderDetailStatus,getSeller,deleteSeller,getProduct,deleteProduct,getMember,deleteMember}};
+export type GetProductsResult = AxiosResponse<ApiResponseListProductResponseDto>
+export type UpdateProductResult = AxiosResponse<ApiResponseVoid>
+export type CreateProductResult = AxiosResponse<ApiResponseVoid>
+export type GetSellersResult = AxiosResponse<ApiResponseListSellerResponseDto>
+export type CreateSellerResult = AxiosResponse<ApiResponseVoid>
+export type UpdateSellerResult = AxiosResponse<ApiResponseVoid>
+export type GetOrdersResult = AxiosResponse<ApiResponseListOrderResponseDto>
+export type CreateOrderResult = AxiosResponse<ApiResponseVoid>
+export type RegisterResult = AxiosResponse<ApiResponseVoid>
+export type UpdateMemberPasswordResult = AxiosResponse<ApiResponseVoid>
+export type UpdateMemberNameResult = AxiosResponse<ApiResponseVoid>
+export type GetCategoriesResult = AxiosResponse<ApiResponseListCategory>
+export type CreateCategoryResult = AxiosResponse<ApiResponseVoid>
+export type GetCategoryResult = AxiosResponse<ApiResponseCategory>
+export type UpdateCategoryNameResult = AxiosResponse<ApiResponseVoid>
+export type DeleteCategoryResult = AxiosResponse<ApiResponseVoid>
+export type SignOutResult = AxiosResponse<ApiResponseVoid>
+export type SignInResult = AxiosResponse<ApiResponseVoid>
+export type GetOrderResult = AxiosResponse<ApiResponseOrderResponseDto>
+export type CancelOrderResult = AxiosResponse<ApiResponseVoid>
+export type UpdateOrderDetailStatusResult = AxiosResponse<ApiResponseVoid>
+export type GetSellerResult = AxiosResponse<ApiResponseSellerResponseDto>
+export type DeleteSellerResult = AxiosResponse<ApiResponseVoid>
+export type GetProductResult = AxiosResponse<ApiResponseProductResponseDto>
+export type DeleteProductResult = AxiosResponse<ApiResponseVoid>
+export type GetMemberResult = AxiosResponse<ApiResponseMemberResponseDto>
+export type DeleteMemberResult = AxiosResponse<ApiResponseVoid>

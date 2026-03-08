@@ -17,9 +17,7 @@ describe("Integration: Auth API", () => {
   beforeAll(() => {
     const testAccount = getTestAccount();
     if (!testAccount || !testAccount.email || !testAccount.password) {
-      throw new Error(
-        "일반회원 테스트 계정이 초기화되지 않았습니다."
-      );
+      throw new Error("일반회원 테스트 계정이 초기화되지 않았습니다.");
     }
     testEmail = testAccount.email;
     testPassword = testAccount.password;
@@ -40,6 +38,7 @@ describe("Integration: Auth API", () => {
 
       // then
       expect(response.status).toBe(200);
+      expect(response.data.status).toBe("SUCCESS");
       expect(response.headers?.["set-cookie"]).toBeDefined();
     });
 
@@ -54,6 +53,8 @@ describe("Integration: Auth API", () => {
       const error = await integrationApi.signIn(payload).catch((e) => e);
       expect(error.isAxiosError).toBe(true);
       expect(error.response?.status).toBe(404);
+      expect(error.response?.data?.status).toBe("ERROR");
+      expect(error.response?.data?.message).toBeDefined();
     });
   });
 
@@ -81,7 +82,8 @@ describe("Integration: Auth API", () => {
       const response = (await integrationApi.signOut()) as AxiosResponse;
 
       // then
-      expect(response.status).toBe(204);
+      expect([200, 204]).toContain(response.status);
+      expect(response.data.status).toBe("SUCCESS");
     });
   });
 });

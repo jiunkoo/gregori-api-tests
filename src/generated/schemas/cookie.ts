@@ -11,12 +11,12 @@ export interface Cookie {
   name?: string;
   value?: string;
   attributes?: CookieAttributes;
-  path?: string;
-  /** @deprecated */
-  version?: number;
-  domain?: string;
   /** @deprecated */
   comment?: string;
+  /** @deprecated */
+  version?: number;
+  path?: string;
+  domain?: string;
   httpOnly?: boolean;
   maxAge?: number;
   secure?: boolean;

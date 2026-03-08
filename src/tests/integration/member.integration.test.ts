@@ -1,11 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { getGlobalTestAccount, waitForGlobalSession } from "../../utils/integration-session";
+import {
+  getGlobalTestAccount,
+  waitForGlobalSession,
+} from "../../utils/integration-session";
 import { setCurrentSession } from "../../utils/axios-cookie-auth";
 import {
   integrationApi,
   generateUniqueName,
 } from "../../utils/integration-helpers";
-import type { GetMemberParams, MemberNameUpdateDto } from "../../generated/schemas";
+import type {
+  GetMemberParams,
+  MemberNameUpdateDto,
+} from "../../generated/schemas";
 
 describe("Integration: Member API", () => {
   let testEmail: string;
@@ -23,7 +29,7 @@ describe("Integration: Member API", () => {
     createdMemberId = globalAccount.memberId;
     if (!testEmail || !createdMemberId) {
       throw new Error(
-        "전역 테스트 계정이 초기화되지 않았습니다. 통합 테스트 세션이 올바르게 설정되지 않았습니다."
+        "전역 테스트 계정이 초기화되지 않았습니다. 통합 테스트 세션이 올바르게 설정되지 않았습니다.",
       );
     }
   });
@@ -44,27 +50,32 @@ describe("Integration: Member API", () => {
 
       // then
       expect(response.status).toBe(200);
-      expect(response.data).toBeDefined();
-      expect(response.data.email).toBe(testEmail);
-      expect(response.data.name).toBeDefined();
+      expect(response.data.status).toBe("SUCCESS");
+      expect(response.data.data).toBeDefined();
+      expect(response.data.data.email).toBe(testEmail);
+      expect(response.data.data.name).toBeDefined();
     });
 
+    describe("POST /member/name", () => {
+      it("UMN | 200 | 성공 | 회원 이름 변경 성공", async () => {
+        // given
+        const newName = generateUniqueName("변경된");
+        const dto: MemberNameUpdateDto = {
+          name: newName,
+        };
 
-  describe("POST /member/name", () => {
-    it("UMN | 200 | 성공 | 회원 이름 변경 성공", async () => {
-      // given
-      const newName = generateUniqueName("변경된");
-      const dto: MemberNameUpdateDto = {
-        name: newName,
-      };
+        // when
+        const response = (await integrationApi.updateMemberName(
+          dto as any,
+        )) as any;
 
-      // when
-      const response = (await integrationApi.updateMemberName(dto as any)) as any;
-
-      // then
-      expect(response.status).toBe(204);
+        // then
+        expect([200, 204]).toContain(response.status);
+        if (response.data && typeof response.data === "object") {
+          expect(response.data.status).toBe("SUCCESS");
+        }
+      });
     });
-  });
 
     it("GM | 404 | 실패 | 인증되지 않은 사용자", async () => {
       // given
@@ -87,6 +98,8 @@ describe("Integration: Member API", () => {
         .catch((e) => e);
       expect(error.isAxiosError).toBe(true);
       expect(error.response?.status).toBe(404);
+      expect(error.response?.data?.status).toBe("ERROR");
+      expect(error.response?.data?.message).toBeDefined();
     });
   });
 });

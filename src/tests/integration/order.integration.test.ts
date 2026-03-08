@@ -1,10 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { getGlobalTestAccount, waitForGlobalSession } from "../../utils/integration-session";
-import { setCurrentSession, SESSION_KIND_HEADER } from "../../utils/axios-cookie-auth";
+import {
+  getGlobalTestAccount,
+  waitForGlobalSession,
+} from "../../utils/integration-session";
+import {
+  setCurrentSession,
+  SESSION_KIND_HEADER,
+} from "../../utils/axios-cookie-auth";
 import { integrationApi } from "../../utils/integration-helpers";
 import type { OrderRequestDto } from "../../generated/schemas";
 
-const generalHeaders = { headers: { [SESSION_KIND_HEADER]: "general" as const } };
+const generalHeaders = {
+  headers: { [SESSION_KIND_HEADER]: "general" as const },
+};
 
 describe("Integration: Order API", () => {
   let testEmail: string;
@@ -19,7 +27,7 @@ describe("Integration: Order API", () => {
     memberId = globalAccount.memberId;
     if (!testEmail || !memberId) {
       throw new Error(
-        "전역 테스트 계정이 초기화되지 않았습니다. 통합 테스트 세션이 올바르게 설정되지 않았습니다."
+        "전역 테스트 계정이 초기화되지 않았습니다. 통합 테스트 세션이 올바르게 설정되지 않았습니다.",
       );
     }
   });
@@ -40,11 +48,15 @@ describe("Integration: Order API", () => {
       results.forEach((r, i) => {
         if (r.status === "rejected" && failedIds[i] != null) {
           const status = (r.reason as any)?.status;
-          console.warn(`[teardown] order cancel failed id=${failedIds[i]} status=${status ?? "unknown"}`);
+          console.warn(
+            `[teardown] order cancel failed id=${failedIds[i]} status=${status ?? "unknown"}`,
+          );
         }
       });
       if (failCount > 0) {
-        console.warn(`[teardown] order cancel failed after retry: ${failCount} ids`);
+        console.warn(
+          `[teardown] order cancel failed after retry: ${failCount} ids`,
+        );
       }
     }
   });
@@ -70,6 +82,9 @@ describe("Integration: Order API", () => {
 
       // then
       expect(response.status).toBe(201);
+      if (response.data && typeof response.data === "object") {
+        expect(response.data.status).toBe("SUCCESS");
+      }
       const location = response.headers?.location || response.headers?.Location;
       expect(location).toMatch(/\/order\/\d+$/);
       const orderIdMatch = location?.match(/\/order\/(\d+)/);
@@ -92,9 +107,10 @@ describe("Integration: Order API", () => {
 
       // then
       expect(response.status).toBe(200);
-      expect(Array.isArray(response.data)).toBe(true);
-      if (response.data.length > 0) {
-        expect(response.data[0]).toHaveProperty("id");
+      expect(response.data.status).toBe("SUCCESS");
+      expect(Array.isArray(response.data.data)).toBe(true);
+      if (response.data.data.length > 0) {
+        expect(response.data.data[0]).toHaveProperty("id");
       }
     });
   });
@@ -104,7 +120,7 @@ describe("Integration: Order API", () => {
       // given
       if (createdOrderIds.length === 0) {
         throw new Error(
-          "조회할 주문이 없습니다. 주문 생성 테스트가 먼저 실행되어야 합니다."
+          "조회할 주문이 없습니다. 주문 생성 테스트가 먼저 실행되어야 합니다.",
         );
       }
       const orderId = createdOrderIds[0];
@@ -114,9 +130,10 @@ describe("Integration: Order API", () => {
 
       // then
       expect(response.status).toBe(200);
-      expect(response.data).toBeDefined();
-      expect(response.data?.id).toBe(orderId);
-      expect(response.data?.status).toBeDefined();
+      expect(response.data.status).toBe("SUCCESS");
+      expect(response.data.data).toBeDefined();
+      expect(response.data.data?.id).toBe(orderId);
+      expect(response.data.data?.status).toBeDefined();
     });
   });
 
@@ -125,7 +142,7 @@ describe("Integration: Order API", () => {
       // given
       if (createdOrderIds.length === 0) {
         throw new Error(
-          "취소할 주문이 없습니다. 주문 생성 테스트가 먼저 실행되어야 합니다."
+          "취소할 주문이 없습니다. 주문 생성 테스트가 먼저 실행되어야 합니다.",
         );
       }
       const orderId = createdOrderIds[0];
@@ -135,6 +152,7 @@ describe("Integration: Order API", () => {
 
       // then
       expect([200, 204]).toContain(response.status);
+      expect(response.data.status).toBe("SUCCESS");
     });
   });
 });

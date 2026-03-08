@@ -1,5 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { setCurrentSession, SESSION_KIND_HEADER } from "../../utils/axios-cookie-auth";
+import {
+  setCurrentSession,
+  SESSION_KIND_HEADER,
+} from "../../utils/axios-cookie-auth";
 import {
   integrationApi,
   generateUniqueName,
@@ -33,11 +36,15 @@ describe("Integration: Category API", () => {
       results.forEach((r, i) => {
         if (r.status === "rejected" && failedIds[i] != null) {
           const status = (r.reason as any)?.status;
-          console.warn(`[teardown] category delete failed id=${failedIds[i]} status=${status ?? "unknown"}`);
+          console.warn(
+            `[teardown] category delete failed id=${failedIds[i]} status=${status ?? "unknown"}`,
+          );
         }
       });
       if (failCount > 0) {
-        console.warn(`[teardown] category delete failed after retry: ${failCount} ids`);
+        console.warn(
+          `[teardown] category delete failed after retry: ${failCount} ids`,
+        );
       }
     }
   });
@@ -55,6 +62,9 @@ describe("Integration: Category API", () => {
 
       // then
       expect(response.status).toBe(201);
+      if (response.data && typeof response.data === "object") {
+        expect(response.data.status).toBe("SUCCESS");
+      }
       const location = response.headers?.location || response.headers?.Location;
       expect(location).toMatch(/\/category\/\d+$/);
       const categoryIdMatch = location?.match(/\/category\/(\d+)/);
@@ -71,12 +81,13 @@ describe("Integration: Category API", () => {
 
       // then
       expect(response.status).toBe(200);
-      expect(Array.isArray(response.data)).toBe(true);
-      if (response.data.length > 0) {
-        expect(response.data[0]).toHaveProperty("id");
-        expect(response.data[0]).toHaveProperty("name");
-        expect(response.data[0]).toHaveProperty("createdAt");
-        expect(response.data[0]).toHaveProperty("updatedAt");
+      expect(response.data.status).toBe("SUCCESS");
+      expect(Array.isArray(response.data.data)).toBe(true);
+      if (response.data.data.length > 0) {
+        expect(response.data.data[0]).toHaveProperty("id");
+        expect(response.data.data[0]).toHaveProperty("name");
+        expect(response.data.data[0]).toHaveProperty("createdAt");
+        expect(response.data.data[0]).toHaveProperty("updatedAt");
       }
     });
   });
@@ -86,7 +97,7 @@ describe("Integration: Category API", () => {
       // given
       if (createdCategoryIds.length === 0) {
         throw new Error(
-          "삭제할 카테고리가 없습니다. 카테고리 생성 테스트가 먼저 실행되어야 합니다."
+          "삭제할 카테고리가 없습니다. 카테고리 생성 테스트가 먼저 실행되어야 합니다.",
         );
       }
       const categoryId = createdCategoryIds[createdCategoryIds.length - 1];
@@ -95,7 +106,8 @@ describe("Integration: Category API", () => {
       const response = (await integrationApi.deleteCategory(categoryId)) as any;
 
       // then
-      expect(response.status).toBe(204);
+      expect([200, 204]).toContain(response.status);
+      expect(response.data.status).toBe("SUCCESS");
       createdCategoryIds.pop();
     });
   });
